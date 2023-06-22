@@ -1,79 +1,43 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-
-struct vettore1 {
-    int v[10];
-};
-
-struct vettore2{
-    int v[10];
-};
-
-typedef struct vettore1 vec1; 
-typedef struct vettore2 vec2; 
-
-int main(int argc, char *argv[]) {
-
-    if (argc != 4) {
-        perror("UTILIZZO SCORRETTO DELLA STRINGA DI RIFERIMENTO\n");
-        exit(-1); 
-    }
-
-    int pos = atoi(argv[3]);
-
-    key_t k1 = atoi(argv[1]); 
-    key_t k2 = atoi(argv[2]); 
-
-    int shm_id_1,shm_id_2; 
-
-    int *shm_pointer_1,*shm_pointer_2;
-
-    shm_id_1 = shmget(k1,0,0);
-
-    shm_id_2 = shmget(k2,0,0);
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <fcntl.h>
 
 
-    if (shm_id_1 == -1 || shm_id_2 == -1) {
-        perror("Errore <client> nella creazione del id\n");
+int main(void) {
+
+    int v[2];
+
+    printf("Inserisci 2 interi:\n");
+    scanf("%i", &v[0]);
+    scanf("%i", &v[1]);
+
+    // li scrivo sulla fifo 
+    ssize_t byte_scritti1,byte_scritti2; 
+
+    // accedo alla fifo 
+    int fd = open("/tmp/myfifo", O_WRONLY);
+
+    if (fd == -1) {
+        perror("Errore nel apertura della fifo\n");
         exit(-1);
     }
 
-    shm_pointer_1 = shmat(shm_id_1,NULL,0);
-
-    shm_pointer_2 = shmat(shm_id_2,NULL,0);
-
-    if(shm_pointer_1 == (void *)-1 || shm_pointer_2 == (void *)-1) {
-        perror("Errore nell'attach della memoria condivisa\n");
+    if (write(fd,&v[0],sizeof(v)) != sizeof(v)) {
+        perror("Errore nella scrittura\n");
         exit(-1);
     }
 
-    // adesso devo semplicemente eseguire la somma e stamparla a video 
-
-    int somma = 0; 
-
-    somma = *(shm_pointer_1+pos) + *(shm_pointer_2+pos);
-
-    printf("<Client> la somma è: %i\n",somma);
-
-
-    // mi stacco dalla memoria prima di terminare
-
-    if(shmdt(shm_pointer_1) == -1) {
-        perror("Errore nella prima detach\n");    
-        exit(-1);
-    }
-
-    if(shmdt(shm_pointer_2) == -1) {
-        perror("Errore nella seconda detach\n");    
+    if(close(fd) == -1) {
+        perror("errore nella chiusura della fifo\n");
         exit(-1);
     }
 
     exit(0);
+
 }
-
-
 
 
